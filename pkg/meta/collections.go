@@ -118,7 +118,9 @@ func (ms Collections) AsFilters() Filters {
 			}
 		}
 
-		fs = append(fs, Filter{Name: k, Items: items, Additional: additional})
+		if len(items) > 0 {
+			fs = append(fs, Filter{Name: k, Items: items, Additional: additional})
+		}
 	}
 	return fs
 }
