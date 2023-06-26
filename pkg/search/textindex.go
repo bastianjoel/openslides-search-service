@@ -72,7 +72,7 @@ func (ti *TextIndex) Close() error {
 
 const deHTML = "de_html"
 
-func deAnalyzerConstructor(
+func deHTMLAnalyzerConstructor(
 	config map[string]interface{},
 	cache *registry.Cache,
 ) (analysis.Analyzer, error) {
@@ -115,7 +115,7 @@ func deAnalyzerConstructor(
 }
 
 func init() {
-	registry.RegisterAnalyzer(deHTML, deAnalyzerConstructor)
+	registry.RegisterAnalyzer(deHTML, deHTMLAnalyzerConstructor)
 }
 
 type bleveType map[string]string
@@ -288,6 +288,7 @@ func (ti *TextIndex) Search(question string) ([]string, error) {
 	//query := bleve.NewQueryStringQuery(question)
 	//query := bleve.NewWildcardQuery(question)
 	query := bleve.NewMatchQuery(question)
+	query.Analyzer = de.AnalyzerName
 	query.Fuzziness = 1
 	request := bleve.NewSearchRequest(query)
 	result, err := ti.index.Search(request)
