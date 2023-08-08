@@ -22,6 +22,7 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/blevesearch/bleve/v2/registry"
+	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/buger/jsonparser"
 )
 
@@ -118,18 +119,19 @@ func init() {
 	registry.RegisterAnalyzer(deHTML, deAnalyzerConstructor)
 }
 
-type bleveType map[string]string
+type bleveType map[string]any
 
 func newBleveType(typ string) bleveType {
 	return bleveType{"_bleve_type": typ}
 }
 
-func (bt bleveType) BleveType() string {
+func (bt bleveType) BleveType() any {
 	return bt["_bleve_type"]
 }
 
 func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 
+	numberFieldMapping := bleve.NewNumericFieldMapping()
 	textFieldMapping := bleve.NewTextFieldMapping()
 	textFieldMapping.Analyzer = de.AnalyzerName
 
@@ -147,6 +149,8 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 					docMapping.AddFieldMappingsAt(fname, htmlFieldMapping)
 				case "string", "text":
 					docMapping.AddFieldMappingsAt(fname, textFieldMapping)
+				case "relation", "number":
+					docMapping.AddFieldMappingsAt(fname, numberFieldMapping)
 				default:
 					log.Printf("unsupport type %q\n", cf.Type)
 				}
@@ -161,6 +165,8 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 func (bt bleveType) fill(fields map[string]*meta.Member, data []byte) {
 	for fname := range fields {
 		if v, err := jsonparser.GetString(data, fname); err == nil {
+			bt[fname] = v
+		} else if v, err := jsonparser.GetInt(data, fname); err == nil {
 			bt[fname] = v
 		} else {
 			delete(bt, fname)
@@ -280,16 +286,25 @@ func (ti *TextIndex) build() error {
 }
 
 // Search queries the internal index for hits.
-func (ti *TextIndex) Search(question string) ([]string, error) {
+func (ti *TextIndex) Search(question string, meetingID int) ([]string, error) {
 	start := time.Now()
 	defer func() {
 		log.Printf("searching for %q took %v\n", question, time.Since(start))
 	}()
-	//query := bleve.NewQueryStringQuery(question)
-	//query := bleve.NewWildcardQuery(question)
-	query := bleve.NewMatchQuery(question)
-	query.Fuzziness = 1
-	request := bleve.NewSearchRequest(query)
+
+	var q query.Query
+	matchQuery := bleve.NewMatchQuery(question)
+	matchQuery.Fuzziness = 1
+
+	if meetingID > 0 {
+		meetingQuery := bleve.NewQueryStringQuery("+meeting_id:" + strconv.Itoa(meetingID))
+
+		q = bleve.NewConjunctionQuery(matchQuery, meetingQuery)
+	} else {
+		q = matchQuery
+	}
+
+	request := bleve.NewSearchRequest(q)
 	result, err := ti.index.Search(request)
 	if err != nil {
 		return nil, err
