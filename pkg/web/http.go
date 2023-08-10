@@ -21,6 +21,7 @@ import (
 
 	"github.com/OpenSlides/openslides-autoupdate-service/pkg/auth"
 	"github.com/OpenSlides/openslides-search-service/pkg/config"
+	"github.com/OpenSlides/openslides-search-service/pkg/meta"
 	"github.com/OpenSlides/openslides-search-service/pkg/oserror"
 	"github.com/OpenSlides/openslides-search-service/pkg/search"
 )
@@ -29,32 +30,13 @@ type controller struct {
 	cfg       *config.Config
 	auth      *auth.Auth
 	qs        *search.QueryServer
-	reqFields map[string][]string
-}
-
-/*
-	func userIDFromRequest(r *http.Request) (int, error) {
-		user := r.FormValue("u")
-		if user == "" {
-			return 0, errors.New("'u' parameter missing")
-		}
-		userID, err := strconv.Atoi(user)
-		if err != nil {
-			return 0, errors.New("'u' is not an user id")
-		}
-		return userID, nil
-	}
-*/
-type auFields struct {
-	RelationType string              `json:"type"`
-	Collection   string              `json:"collection"`
-	Fields       map[string]auFields `json:"fields"`
+	reqFields map[string]map[string]*meta.CollectionRelation
 }
 
 type auRequest struct {
-	Ids        []int                `json:"ids"`
-	Collection string               `json:"collection"`
-	Fields     map[string]*auFields `json:"fields"`
+	Ids        []int                               `json:"ids"`
+	Collection string                              `json:"collection"`
+	Fields     map[string]*meta.CollectionRelation `json:"fields"`
 }
 
 func (c *controller) autoupdateRequestFromFQIDs(fqids []string) []auRequest {
@@ -71,14 +53,8 @@ func (c *controller) autoupdateRequestFromFQIDs(fqids []string) []auRequest {
 			req = append(req, auRequest{
 				Ids:        []int{},
 				Collection: collection,
-				Fields:     map[string]*auFields{},
+				Fields:     c.reqFields[collection],
 			})
-
-			if fields, ok := c.reqFields[collection]; ok {
-				for _, field := range fields {
-					req[collIdxMap[collection]].Fields[field] = nil
-				}
-			}
 		}
 
 		if parsedID, err := strconv.Atoi(id); err == nil {
@@ -107,13 +83,6 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 	if c.cfg.Restricter.URL != "" {
 
 		userID := c.auth.FromContext(r.Context())
-		/*
-			userID, err := userIDFromRequest(r)
-			if err != nil {
-				handleErrorWithStatus(w, err)
-				return
-			}
-		*/
 
 		requestBody := c.autoupdateRequestFromFQIDs(answers)
 		if len(requestBody) == 0 {
@@ -308,7 +277,7 @@ func Run(
 	cfg *config.Config,
 	auth *auth.Auth,
 	qs *search.QueryServer,
-	reqFields map[string][]string,
+	reqFields map[string]map[string]*meta.CollectionRelation,
 ) error {
 
 	c := controller{

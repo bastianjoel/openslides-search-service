@@ -12,7 +12,7 @@ type Filter struct {
 	Name       string
 	Items      []string
 	Additional []string
-	Relations  map[string]CollectionRelation
+	Relations  map[string]*CollectionRelation
 }
 
 // FilterKey is part of the meta model.
@@ -53,18 +53,23 @@ func (fs *Filters) UnmarshalYAML(value *yaml.Node) error {
 
 	*fs = make(Filters, 0, len(sorted))
 	for _, s := range sorted {
+		relations := map[string]*CollectionRelation{}
+		for k, r := range fsm[s].Relations {
+			relations[k] = &r
+		}
+
 		*fs = append(*fs, Filter{
 			Name:       s.Name,
 			Items:      fsm[s].Searchable,
 			Additional: fsm[s].Additional,
-			Relations:  fsm[s].Relations,
+			Relations:  relations,
 		})
 	}
 	return nil
 }
 
 // Retain returns a keep function for [Retain] which also updates
-// if Members are searchable
+// if Members are searchable and adds their relation informations
 func (fs Filters) Retain(verbose bool) func(string, string, *Member) bool {
 	type key struct {
 		rel   string
@@ -72,6 +77,7 @@ func (fs Filters) Retain(verbose bool) func(string, string, *Member) bool {
 	}
 	keep := map[key]struct{}{}
 	additional := map[key]struct{}{}
+	relations := map[key]*CollectionRelation{}
 	for _, m := range fs {
 		for _, f := range m.Items {
 			keep[key{rel: m.Name, field: f}] = struct{}{}
@@ -80,8 +86,16 @@ func (fs Filters) Retain(verbose bool) func(string, string, *Member) bool {
 		for _, f := range m.Additional {
 			additional[key{rel: m.Name, field: f}] = struct{}{}
 		}
+
+		for f, data := range m.Relations {
+			relations[key{rel: m.Name, field: f}] = data
+		}
 	}
 	return func(rk, fk string, m *Member) bool {
+		if _, ok := relations[key{rel: rk, field: fk}]; ok {
+			m.Relation = relations[key{rel: rk, field: fk}]
+		}
+
 		if _, ok := additional[key{rel: rk, field: fk}]; ok {
 			m.Searchable = false
 			return true
@@ -93,6 +107,7 @@ func (fs Filters) Retain(verbose bool) func(string, string, *Member) bool {
 		} else {
 			m.Searchable = true
 		}
+
 		return ok
 	}
 }
