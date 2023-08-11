@@ -15,16 +15,17 @@ type MemberTo struct {
 
 // Member is part of the meta model.
 type Member struct {
-	Type                  string    `yaml:"type"`
-	Description           string    `yaml:"description"`
-	To                    *MemberTo `yaml:"to"`
-	Fields                *Fields   `yaml:"fields"`
-	ReplacementCollection string    `yaml:"replacement_collection"`
-	ReplacementEnum       []string  `yaml:"replacement_enum"`
-	RestrictionMode       string    `yaml:"restriction_mode"`
-	Required              bool      `yaml:"required"`
-	Searchable            bool      `yaml:"-"`
-	Order                 int32     `yaml:"-"`
+	Type                  string              `yaml:"type"`
+	Description           string              `yaml:"description"`
+	To                    *MemberTo           `yaml:"to"`
+	Fields                *Fields             `yaml:"fields"`
+	ReplacementCollection string              `yaml:"replacement_collection"`
+	ReplacementEnum       []string            `yaml:"replacement_enum"`
+	RestrictionMode       string              `yaml:"restriction_mode"`
+	Required              bool                `yaml:"required"`
+	Searchable            bool                `yaml:"-"`
+	Relation              *CollectionRelation `yaml:"-"`
+	Order                 int32               `yaml:"-"`
 }
 
 // UnmarshalYAML implements [gopkg.in/yaml.v3.Unmarshaler].
