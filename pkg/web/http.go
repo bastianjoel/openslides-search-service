@@ -57,7 +57,7 @@ type auRequest struct {
 	Fields     map[string]*auFields `json:"fields"`
 }
 
-func (c *controller) autoupdateRequestFromFQIDs(answers map[string]search.SearchAnswer) []auRequest {
+func (c *controller) autoupdateRequestFromFQIDs(answers map[string]search.Answer) []auRequest {
 	collIdxMap := map[string]int{}
 	var req []auRequest
 	for fqid := range answers {
@@ -178,7 +178,7 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 }
 
 // transforms the autoupdate response to per fqid objects
-func transformRestricterResponse(answers map[string]search.SearchAnswer, body io.ReadCloser) ([]byte, error) {
+func transformRestricterResponse(answers map[string]search.Answer, body io.ReadCloser) ([]byte, error) {
 	respBody, err := io.ReadAll(body)
 	if err != nil {
 		return nil, err

@@ -279,12 +279,13 @@ func (ti *TextIndex) build() error {
 	return nil
 }
 
-type SearchAnswer struct {
+// Answer contains additional information of an search results answer
+type Answer struct {
 	Score float64
 }
 
 // Search queries the internal index for hits.
-func (ti *TextIndex) Search(question string) (map[string]SearchAnswer, error) {
+func (ti *TextIndex) Search(question string) (map[string]Answer, error) {
 	start := time.Now()
 	defer func() {
 		log.Printf("searching for %q took %v\n", question, time.Since(start))
@@ -300,7 +301,7 @@ func (ti *TextIndex) Search(question string) (map[string]SearchAnswer, error) {
 	}
 	log.Printf("number hits: %d\n", len(result.Hits))
 	dupes := map[string]struct{}{}
-	answers := make(map[string]SearchAnswer, len(result.Hits))
+	answers := make(map[string]Answer, len(result.Hits))
 	numDupes := 0
 
 	for i := range result.Hits {
@@ -310,7 +311,7 @@ func (ti *TextIndex) Search(question string) (map[string]SearchAnswer, error) {
 			continue
 		}
 		dupes[fqid] = struct{}{}
-		answers[fqid] = SearchAnswer{
+		answers[fqid] = Answer{
 			Score: result.Hits[i].Score,
 		}
 	}
