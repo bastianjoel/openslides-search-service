@@ -15,8 +15,9 @@ import (
 )
 
 type queryItem struct {
-	q  string
-	fn func([]string, error)
+	q       string
+	meeting int
+	fn      func([]string, error)
 }
 
 // QueryServer manages incoming queries against the database.
@@ -54,7 +55,7 @@ func (qs *QueryServer) Run(ctx context.Context) {
 				qi.fn(nil, err)
 				continue
 			}
-			qi.fn(qs.ti.Search(qi.q))
+			qi.fn(qs.ti.Search(qi.q, qi.meeting))
 		}
 	}
 }
@@ -62,11 +63,12 @@ func (qs *QueryServer) Run(ctx context.Context) {
 var errQueryQueueFull = errors.New("query queue full")
 
 // Query searches the database for hits. Returns a list of fqids.
-func (qs *QueryServer) Query(q string) (answers []string, err error) {
+func (qs *QueryServer) Query(q string, meeting int) (answers []string, err error) {
 	done := make(chan struct{})
 	select {
 	case qs.queries <- queryItem{
-		q: q,
+		q:       q,
+		meeting: meeting,
 		fn: func(as []string, e error) {
 			answers, err = as, e
 			close(done)

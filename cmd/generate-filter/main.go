@@ -61,8 +61,11 @@ func run(input, filter, output string, verbose bool) error {
 	searchable := meta.RetainStrings(verbose)
 	collections.Retain(func(k, fk string, f *meta.Member) bool {
 		switch fk {
-		case "id", "meeting_id", "sequential_number":
+		case "id", "sequential_number":
 			f.Searchable = false
+			return true
+		case "meeting_id":
+			f.Searchable = true
 			return true
 		default:
 			f.Searchable = true

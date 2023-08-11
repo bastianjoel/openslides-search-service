@@ -98,7 +98,8 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	answers, err := c.qs.Query(query)
+	meeting, _ := strconv.Atoi(r.FormValue("m"))
+	answers, err := c.qs.Query(query, meeting)
 	if err != nil {
 		handleErrorWithStatus(w, err)
 		return
