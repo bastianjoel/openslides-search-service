@@ -287,7 +287,8 @@ func (ti *TextIndex) build() error {
 
 // Answer contains additional information of an search results answer
 type Answer struct {
-	Score float64
+	Score        float64
+	MatchedWords map[string][]string
 }
 
 // Search queries the internal index for hits.
@@ -310,6 +311,7 @@ func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, 
 	}
 
 	request := bleve.NewSearchRequest(q)
+	request.IncludeLocations = true
 	result, err := ti.index.Search(request)
 	if err != nil {
 		return nil, err
@@ -325,9 +327,19 @@ func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, 
 			numDupes++
 			continue
 		}
+
+		matchedWords := map[string][]string{}
+		for location := range result.Hits[i].Locations {
+			matchedWords[location] = []string{}
+			for word := range result.Hits[i].Locations[location] {
+				matchedWords[location] = append(matchedWords[location], word)
+			}
+		}
+
 		dupes[fqid] = struct{}{}
 		answers[fqid] = Answer{
-			Score: result.Hits[i].Score,
+			Score:        result.Hits[i].Score,
+			MatchedWords: matchedWords,
 		}
 	}
 	log.Printf("number of duplicates: %d\n", numDupes)
