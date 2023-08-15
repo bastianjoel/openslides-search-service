@@ -190,8 +190,9 @@ func transformRestricterResponse(answers map[string]search.Answer, body io.ReadC
 	}
 
 	type resultEntry struct {
-		Content map[string]any `json:"content"`
-		Score   *float64       `json:"score,omitempty"`
+		Content      map[string]any      `json:"content"`
+		MatchedWords map[string][]string `json:"matched_by,omitempty"`
+		Score        *float64            `json:"score,omitempty"`
 	}
 	transformed := make(map[string]resultEntry)
 	for k, v := range restricterResponse {
@@ -202,12 +203,15 @@ func transformRestricterResponse(answers map[string]search.Answer, body io.ReadC
 
 			if _, ok := transformed[fqid]; !ok {
 				var score *float64
+				var matchedWords map[string][]string
 				if val, ok := answers[fqid]; ok {
 					score = &val.Score
+					matchedWords = val.MatchedWords
 				}
 				transformed[fqid] = resultEntry{
-					Content: make(map[string]any),
-					Score:   score,
+					Content:      make(map[string]any),
+					MatchedWords: matchedWords,
+					Score:        score,
 				}
 			}
 
