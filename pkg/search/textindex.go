@@ -6,6 +6,7 @@ package search
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"os"
 	"strconv"
@@ -16,7 +17,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis"
-	"github.com/blevesearch/bleve/v2/analysis/char/html"
+	charHtml "github.com/blevesearch/bleve/v2/analysis/char/html"
 	"github.com/blevesearch/bleve/v2/analysis/lang/de"
 	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
@@ -77,7 +78,7 @@ func deHTMLAnalyzerConstructor(
 	cache *registry.Cache,
 ) (analysis.Analyzer, error) {
 
-	htmlFilter, err := cache.CharFilterNamed(html.Name)
+	htmlFilter, err := cache.CharFilterNamed(charHtml.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +103,11 @@ func deHTMLAnalyzerConstructor(
 		return nil, err
 	}
 	rv := analysis.DefaultAnalyzer{
-		CharFilters: []analysis.CharFilter{htmlFilter},
-		Tokenizer:   unicodeTokenizer,
+		CharFilters: []analysis.CharFilter{
+			htmlFilter,
+			&specialCharFilter{},
+		},
+		Tokenizer: unicodeTokenizer,
 		TokenFilters: []analysis.TokenFilter{
 			toLowerFilter,
 			stopDeFilter,
@@ -112,6 +116,13 @@ func deHTMLAnalyzerConstructor(
 		},
 	}
 	return &rv, nil
+}
+
+type specialCharFilter struct{}
+
+func (f *specialCharFilter) Filter(input []byte) []byte {
+	input = []byte(html.UnescapeString(string(input)))
+	return input
 }
 
 func init() {
@@ -129,7 +140,6 @@ func (bt bleveType) BleveType() string {
 }
 
 func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
-
 	textFieldMapping := bleve.NewTextFieldMapping()
 	textFieldMapping.Analyzer = de.AnalyzerName
 
