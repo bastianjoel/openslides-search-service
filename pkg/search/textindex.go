@@ -137,6 +137,8 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 	htmlFieldMapping.Analyzer = deHTML
 
 	indexMapping := mapping.NewIndexMapping()
+	indexMapping.TypeField = "_bleve_type"
+	indexMapping.DefaultAnalyzer = de.AnalyzerName
 
 	for name, col := range collections {
 		docMapping := bleve.NewDocumentMapping()
@@ -288,8 +290,6 @@ func (ti *TextIndex) Search(question string) ([]string, error) {
 	//query := bleve.NewQueryStringQuery(question)
 	//query := bleve.NewWildcardQuery(question)
 	query := bleve.NewMatchQuery(question)
-	query.Analyzer = de.AnalyzerName
-	query.Fuzziness = 1
 	request := bleve.NewSearchRequest(query)
 	result, err := ti.index.Search(request)
 	if err != nil {
