@@ -73,7 +73,7 @@ func (ti *TextIndex) Close() error {
 
 const deHTML = "de_html"
 
-func deAnalyzerConstructor(
+func deHTMLAnalyzerConstructor(
 	config map[string]interface{},
 	cache *registry.Cache,
 ) (analysis.Analyzer, error) {
@@ -116,7 +116,7 @@ func deAnalyzerConstructor(
 }
 
 func init() {
-	registry.RegisterAnalyzer(deHTML, deAnalyzerConstructor)
+	registry.RegisterAnalyzer(deHTML, deHTMLAnalyzerConstructor)
 }
 
 type bleveType map[string]any

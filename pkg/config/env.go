@@ -7,25 +7,19 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 )
 
-// parseSecrets returns a function which in turn checks if
-// a given string starts with 'secret:'. If so the rest
-// of the string is used as a relative path to the path
-// given to the generating function.
-func parseSecrets(path *string) func(string) (string, error) {
-	const prefix = "secret:"
+// parseSecretsFile takes a relative path as its argument
+// and returns its contents
+func parseSecretsFile(defaultFile string) func(string) (string, error) {
 	return func(s string) (string, error) {
-		if !strings.HasPrefix(s, prefix) {
-			return s, nil
+		if s == "" {
+			s = defaultFile
 		}
-		file := s[len(prefix):]
-		fname := filepath.Join(*path, file)
-		content, err := os.ReadFile(fname)
+
+		content, err := os.ReadFile(s)
 		if err != nil {
 			return "", err
 		}

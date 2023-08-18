@@ -33,18 +33,60 @@ type controller struct {
 }
 
 /*
-func userIDFromRequest(r *http.Request) (int, error) {
-	user := r.FormValue("u")
-	if user == "" {
-		return 0, errors.New("'u' parameter missing")
+	func userIDFromRequest(r *http.Request) (int, error) {
+		user := r.FormValue("u")
+		if user == "" {
+			return 0, errors.New("'u' parameter missing")
+		}
+		userID, err := strconv.Atoi(user)
+		if err != nil {
+			return 0, errors.New("'u' is not an user id")
+		}
+		return userID, nil
 	}
-	userID, err := strconv.Atoi(user)
-	if err != nil {
-		return 0, errors.New("'u' is not an user id")
-	}
-	return userID, nil
-}
 */
+type auFields struct {
+	RelationType string              `json:"type"`
+	Collection   string              `json:"collection"`
+	Fields       map[string]auFields `json:"fields"`
+}
+
+type auRequest struct {
+	Ids        []int                `json:"ids"`
+	Collection string               `json:"collection"`
+	Fields     map[string]*auFields `json:"fields"`
+}
+
+func (c *controller) autoupdateRequestFromFQIDs(fqids []string) []auRequest {
+	collIdxMap := map[string]int{}
+	var req []auRequest
+	for _, fqid := range fqids {
+		collection, id, found := strings.Cut(fqid, "/")
+		if !found {
+			continue
+		}
+
+		if _, ok := collIdxMap[collection]; !ok {
+			collIdxMap[collection] = len(req)
+			req = append(req, auRequest{
+				Ids:        []int{},
+				Collection: collection,
+				Fields:     map[string]*auFields{},
+			})
+
+			if fields, ok := c.reqFields[collection]; ok {
+				for _, field := range fields {
+					req[collIdxMap[collection]].Fields[field] = nil
+				}
+			}
+		}
+
+		if parsedID, err := strconv.Atoi(id); err == nil {
+			req[collIdxMap[collection]].Ids = append(req[collIdxMap[collection]].Ids, parsedID)
+		}
+	}
+	return req
+}
 
 func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 
@@ -74,24 +116,12 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 			}
 		*/
 
-		requestedFields := map[string][]string{}
-		for _, fqid := range answers {
-			collection, _, _ := strings.Cut(fqid, "/")
-			if _, ok := requestedFields[collection]; !ok {
-				if _, ok := c.reqFields[collection]; ok {
-					requestedFields[collection] = c.reqFields[collection]
-				}
+		requestBody := c.autoupdateRequestFromFQIDs(answers)
+		if len(requestBody) == 0 {
+			if _, err := w.Write([]byte("{}")); err != nil {
+				log.Printf("error: writing response failed: %v\n", err)
 			}
-		}
-
-		requestBody := struct {
-			UserID int                 `json:"user_id"`
-			FQIDs  []string            `json:"fqids"`
-			Fields map[string][]string `json:"fields"`
-		}{
-			UserID: userID,
-			FQIDs:  answers,
-			Fields: requestedFields,
+			return
 		}
 
 		body, err := json.Marshal(&requestBody)
@@ -99,10 +129,20 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 			handleErrorWithStatus(w, err)
 			return
 		}
-		resp, err := http.Post(
-			c.cfg.Restricter.URL,
-			"application/json",
-			bytes.NewReader(body))
+
+		urlParams := fmt.Sprintf("?user_id=%d&single=1", userID)
+		req, err := http.NewRequest("POST", c.cfg.Restricter.URL+urlParams, bytes.NewReader(body))
+		if err != nil {
+			handleErrorWithStatus(w, err)
+			return
+		}
+
+		req.Header = http.Header{
+			"Content-Type": {"application/json"},
+		}
+
+		client := http.Client{}
+		resp, err := client.Do(req)
 		if err != nil {
 			handleErrorWithStatus(w, err)
 			return
@@ -117,7 +157,7 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 		defer resp.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 
-		filteredResp, err := filterRestricterResponse(resp.Body)
+		filteredResp, err := transformRestricterResponse(resp.Body)
 		if err != nil {
 			handleErrorWithStatus(w, err)
 			return
@@ -138,31 +178,39 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// removes restriced results from restricter response by checking
-// for id fields within the retured results
-func filterRestricterResponse(body io.ReadCloser) ([]byte, error) {
+// transforms the autoupdate response to per fqid objects
+func transformRestricterResponse(body io.ReadCloser) ([]byte, error) {
 	respBody, err := io.ReadAll(body)
 	if err != nil {
 		return nil, err
 	}
 
-	var restricterResponse map[string]map[string]any
+	var restricterResponse map[string]any
 	if err := json.Unmarshal(respBody, &restricterResponse); err != nil {
 		return nil, err
 	}
 
+	transformed := make(map[string]map[string]any)
 	for k, v := range restricterResponse {
-		if _, ok := v["id"]; !ok {
-			delete(restricterResponse, k)
+		parts := strings.Split(k, "/")
+		if len(parts) >= 3 {
+			fqid := parts[0] + "/" + parts[1]
+			field := parts[2]
+
+			if _, ok := transformed[fqid]; !ok {
+				transformed[fqid] = make(map[string]any)
+			}
+
+			transformed[fqid][field] = v
 		}
 	}
 
-	filteredContent, err := json.Marshal(restricterResponse)
+	transformedContent, err := json.Marshal(transformed)
 	if err != nil {
 		return nil, err
 	}
 
-	return filteredContent, nil
+	return transformedContent, nil
 }
 
 func authMiddleware(next http.Handler, auth *auth.Auth) http.Handler {
