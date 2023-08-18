@@ -15,9 +15,9 @@ import (
 )
 
 type queryItem struct {
-	q  string
+	q       string
 	meeting int
-	fn func(map[string]Answer, error)
+	fn      func(map[string]Answer, error)
 }
 
 // QueryServer manages incoming queries against the database.
@@ -67,7 +67,7 @@ func (qs *QueryServer) Query(q string, meeting int) (answers map[string]Answer, 
 	done := make(chan struct{})
 	select {
 	case qs.queries <- queryItem{
-		q: q,
+		q:       q,
 		meeting: meeting,
 		fn: func(as map[string]Answer, e error) {
 			answers, err = as, e
