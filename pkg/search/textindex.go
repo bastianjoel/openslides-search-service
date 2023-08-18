@@ -139,6 +139,7 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 	htmlFieldMapping.Analyzer = deHTML
 
 	indexMapping := mapping.NewIndexMapping()
+	indexMapping.TypeField = "_bleve_type"
 
 	for name, col := range collections {
 		docMapping := bleve.NewDocumentMapping()
@@ -151,8 +152,10 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 					docMapping.AddFieldMappingsAt(fname, textFieldMapping)
 				case "relation", "number":
 					docMapping.AddFieldMappingsAt(fname, numberFieldMapping)
+				case "number[]":
+					docMapping.AddFieldMappingsAt(fname, numberFieldMapping)
 				default:
-					log.Printf("unsupport type %q\n", cf.Type)
+					log.Printf("unsupport type %q on field %s\n", cf.Type, fname)
 				}
 			}
 		}
@@ -164,13 +167,33 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 
 func (bt bleveType) fill(fields map[string]*meta.Member, data []byte) {
 	for fname := range fields {
-		if v, err := jsonparser.GetString(data, fname); err == nil {
-			bt[fname] = v
-		} else if v, err := jsonparser.GetInt(data, fname); err == nil {
-			bt[fname] = v
-		} else {
-			delete(bt, fname)
+		switch fields[fname].Type {
+		case "HTMLStrict", "HTMLPermissive", "string", "text":
+			if v, err := jsonparser.GetString(data, fname); err == nil {
+				bt[fname] = v
+				continue
+			}
+		case "relation", "number":
+			if v, err := jsonparser.GetInt(data, fname); err == nil {
+				bt[fname] = v
+				continue
+			}
+		case "number[]":
+			bt[fname] = []int64{}
+			jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+				if v, err := jsonparser.GetInt(value); err == nil {
+					bt[fname] = append(bt[fname].([]int64), v)
+				}
+			}, fname)
+			continue
+		default:
+			if v, _, _, err := jsonparser.Get(data, fname); err == nil {
+				bt[fname] = v
+				continue
+			}
 		}
+
+		delete(bt, fname)
 	}
 }
 
@@ -297,9 +320,19 @@ func (ti *TextIndex) Search(question string, meetingID int) ([]string, error) {
 	matchQuery.Fuzziness = 1
 
 	if meetingID > 0 {
-		meetingQuery := bleve.NewQueryStringQuery("+meeting_id:" + strconv.Itoa(meetingID))
+		fmid := float64(meetingID)
+		inclusive := true
+		meetingQuery := bleve.NewNumericRangeQuery(&fmid, &fmid)
+		meetingQuery.InclusiveMin = &inclusive
+		meetingQuery.InclusiveMax = &inclusive
+		meetingQuery.SetField("meeting_id")
 
-		q = bleve.NewConjunctionQuery(matchQuery, meetingQuery)
+		meetingIdsQuery := bleve.NewNumericRangeQuery(&fmid, &fmid)
+		meetingIdsQuery.InclusiveMin = &inclusive
+		meetingIdsQuery.InclusiveMax = &inclusive
+		meetingIdsQuery.SetField("meeting_ids")
+
+		q = bleve.NewConjunctionQuery(bleve.NewDisjunctionQuery(meetingIdsQuery, meetingQuery), matchQuery)
 	} else {
 		q = matchQuery
 	}
