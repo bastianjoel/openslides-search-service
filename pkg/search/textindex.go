@@ -136,8 +136,8 @@ func newBleveType(typ string) bleveType {
 	return bleveType{"_bleve_type": typ}
 }
 
-func (bt bleveType) BleveType() any {
-	return bt["_bleve_type"]
+func (bt bleveType) BleveType() string {
+	return bt["_bleve_type"].(string)
 }
 
 func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
