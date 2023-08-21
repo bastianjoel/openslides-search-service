@@ -319,6 +319,14 @@ func (ti *TextIndex) build() error {
 	return nil
 }
 
+func newNumericQuery(num float64) *query.NumericRangeQuery {
+	inclusive := true
+	numericQuery := bleve.NewNumericRangeQuery(&num, &num)
+	numericQuery.InclusiveMin = &inclusive
+	numericQuery.InclusiveMax = &inclusive
+	return numericQuery
+}
+
 // Search queries the internal index for hits.
 func (ti *TextIndex) Search(question string, meetingID int) ([]string, error) {
 	start := time.Now()
@@ -331,15 +339,10 @@ func (ti *TextIndex) Search(question string, meetingID int) ([]string, error) {
 
 	if meetingID > 0 {
 		fmid := float64(meetingID)
-		inclusive := true
-		meetingQuery := bleve.NewNumericRangeQuery(&fmid, &fmid)
-		meetingQuery.InclusiveMin = &inclusive
-		meetingQuery.InclusiveMax = &inclusive
+		meetingQuery := newNumericQuery(fmid)
 		meetingQuery.SetField("meeting_id")
 
-		meetingIdsQuery := bleve.NewNumericRangeQuery(&fmid, &fmid)
-		meetingIdsQuery.InclusiveMin = &inclusive
-		meetingIdsQuery.InclusiveMax = &inclusive
+		meetingIdsQuery := newNumericQuery(fmid)
 		meetingIdsQuery.SetField("meeting_ids")
 
 		q = bleve.NewConjunctionQuery(bleve.NewDisjunctionQuery(meetingIdsQuery, meetingQuery), matchQuery)
