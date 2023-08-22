@@ -8,7 +8,7 @@ The OpenSlides search service.
 | Env variable                    | Default value              | Meaning |
 | ------------------------------- | -------------------------- | ------- |
 | `SEARCH_PORT`                   | `9050`                     | Port the service listens on.    |
-| `SEARCH_HOST`                   | ``                         | Host the service is bound to.   |
+| `SEARCH_LISTEN_HOST`            | ``                         | Host the service is bound to.   |
 | `SEARCH_MAX_QUEUED`             | `5`                        | Number of waiting queries.      |
 | `SEARCH_INDEX_AGE`              | `100ms`                    | Accepted age of internal index. |
 | `SEARCH_INDEX_FILE`             | `search.bleve`             | Filename of the internal index. |

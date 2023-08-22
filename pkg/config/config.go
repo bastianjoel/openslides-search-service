@@ -123,7 +123,7 @@ func (cfg *Config) fromEnv() error {
 
 	return storeFromEnv([]storeEnv{
 		{"SEARCH_PORT", storeInt(&cfg.Web.Port)},
-		{"SEARCH_HOST", storeString(&cfg.Web.Host)},
+		{"SEARCH_LISTEN_HOST", storeString(&cfg.Web.Host)},
 		{"SEARCH_MAX_QUEUED", storeInt(&cfg.Web.MaxQueue)},
 		{"SEARCH_INDEX_AGE", storeDuration(&cfg.Index.Age)},
 		{"SEARCH_INDEX_FILE", storeString(&cfg.Index.File)},
