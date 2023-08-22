@@ -149,6 +149,8 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 	htmlFieldMapping := bleve.NewTextFieldMapping()
 	htmlFieldMapping.Analyzer = deHTML
 
+	stringFieldMapping := bleve.NewTextFieldMapping()
+
 	indexMapping := mapping.NewIndexMapping()
 	indexMapping.TypeField = "_bleve_type"
 
@@ -161,6 +163,8 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 					docMapping.AddFieldMappingsAt(fname, htmlFieldMapping)
 				case "string", "text":
 					docMapping.AddFieldMappingsAt(fname, textFieldMapping)
+				case "generic-relation":
+					docMapping.AddFieldMappingsAt(fname, stringFieldMapping)
 				case "relation", "number":
 					docMapping.AddFieldMappingsAt(fname, numberFieldMapping)
 				case "number[]":
@@ -179,7 +183,7 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 func (bt bleveType) fill(fields map[string]*meta.Member, data []byte) {
 	for fname := range fields {
 		switch fields[fname].Type {
-		case "HTMLStrict", "HTMLPermissive", "string", "text":
+		case "HTMLStrict", "HTMLPermissive", "string", "text", "generic-relation":
 			if v, err := jsonparser.GetString(data, fname); err == nil {
 				bt[fname] = v
 				continue
@@ -345,13 +349,17 @@ func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, 
 
 	if meetingID > 0 {
 		fmid := float64(meetingID)
-		meetingQuery := newNumericQuery(fmid)
-		meetingQuery.SetField("meeting_id")
+		meetingIDQuery := newNumericQuery(fmid)
+		meetingIDQuery.SetField("meeting_id")
 
-		meetingIdsQuery := newNumericQuery(fmid)
-		meetingIdsQuery.SetField("meeting_ids")
+		meetingIDsQuery := newNumericQuery(fmid)
+		meetingIDsQuery.SetField("meeting_ids")
 
-		q = bleve.NewConjunctionQuery(bleve.NewDisjunctionQuery(meetingIdsQuery, meetingQuery), matchQuery)
+		meetingIDOwnerQuery := bleve.NewMatchQuery("meeting/" + strconv.Itoa(meetingID))
+		meetingIDOwnerQuery.SetField("owner_id")
+
+		meetingQuery := bleve.NewDisjunctionQuery(meetingIDQuery, meetingIDsQuery, meetingIDOwnerQuery)
+		q = bleve.NewConjunctionQuery(meetingQuery, matchQuery)
 	} else {
 		q = matchQuery
 	}
