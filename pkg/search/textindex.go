@@ -345,7 +345,7 @@ func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, 
 	}()
 
 	var q query.Query
-	matchQuery := bleve.NewMatchQuery(question)
+	matchQuery := bleve.NewQueryStringQuery(question)
 
 	if meetingID > 0 {
 		fmid := float64(meetingID)
