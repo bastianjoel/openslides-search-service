@@ -327,8 +327,14 @@ func newNumericQuery(num float64) *query.NumericRangeQuery {
 	return numericQuery
 }
 
+// Answer contains additional information of an search results answer
+type Answer struct {
+	Score        float64
+	MatchedWords map[string][]string
+}
+
 // Search queries the internal index for hits.
-func (ti *TextIndex) Search(question string, meetingID int) ([]string, error) {
+func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, error) {
 	start := time.Now()
 	defer func() {
 		log.Printf("searching for %q took %v\n", question, time.Since(start))
@@ -351,13 +357,14 @@ func (ti *TextIndex) Search(question string, meetingID int) ([]string, error) {
 	}
 
 	request := bleve.NewSearchRequest(q)
+	request.IncludeLocations = true
 	result, err := ti.index.Search(request)
 	if err != nil {
 		return nil, err
 	}
 	log.Printf("number hits: %d\n", len(result.Hits))
 	dupes := map[string]struct{}{}
-	answers := make([]string, 0, len(result.Hits))
+	answers := make(map[string]Answer, len(result.Hits))
 	numDupes := 0
 
 	for i := range result.Hits {
@@ -366,8 +373,20 @@ func (ti *TextIndex) Search(question string, meetingID int) ([]string, error) {
 			numDupes++
 			continue
 		}
+
+		matchedWords := map[string][]string{}
+		for location := range result.Hits[i].Locations {
+			matchedWords[location] = []string{}
+			for word := range result.Hits[i].Locations[location] {
+				matchedWords[location] = append(matchedWords[location], word)
+			}
+		}
+
 		dupes[fqid] = struct{}{}
-		answers = append(answers, fqid)
+		answers[fqid] = Answer{
+			Score:        result.Hits[i].Score,
+			MatchedWords: matchedWords,
+		}
 	}
 	log.Printf("number of duplicates: %d\n", numDupes)
 	return answers, nil

@@ -16,16 +16,16 @@ type Collection struct {
 
 // CollectionRelation describes a related collection
 type CollectionRelation struct {
-	Type       string
-	Collection string
-	Fields     []string
+	Type       string                         `json:"type"`
+	Collection *string                        `json:"collection,omitempty"`
+	Fields     map[string]*CollectionRelation `json:"fields"`
 }
 
 // CollectionDescription is the collection format for search filters
 type CollectionDescription struct {
-	Searchable []string                      `yaml:"searchable"`
-	Additional []string                      `yaml:"additional"`
-	Relations  map[string]CollectionRelation `yaml:"relations,omitempty"`
+	Searchable []string                       `yaml:"searchable"`
+	Additional []string                       `yaml:"additional"`
+	Relations  map[string]*CollectionRelation `yaml:"relations,omitempty"`
 }
 
 // Collections is part of the meta model.
@@ -126,12 +126,15 @@ func (ms Collections) AsFilters() Filters {
 }
 
 // CollectionRequestFields returns the collections with their requested fields
-func (ms Collections) CollectionRequestFields() map[string][]string {
-	collections := map[string][]string{}
+func (ms Collections) CollectionRequestFields() map[string]map[string]*CollectionRelation {
+	collections := map[string]map[string]*CollectionRelation{}
 
 	keys := ms.OrderedKeys()
 	for _, k := range keys {
-		collections[k] = ms[k].OrderedKeys()
+		collections[k] = map[string]*CollectionRelation{}
+		for _, field := range ms[k].OrderedKeys() {
+			collections[k][field] = ms[k].Fields[field].Relation
+		}
 	}
 
 	return collections
