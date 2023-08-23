@@ -72,6 +72,31 @@ func (ti *TextIndex) Close() error {
 	return err1
 }
 
+const deStandard = "standard_de"
+
+func deStandardAnalyzerConstructor(config map[string]interface{}, cache *registry.Cache) (analysis.Analyzer, error) {
+	tokenizer, err := cache.TokenizerNamed(unicode.Name)
+	if err != nil {
+		return nil, err
+	}
+	toLowerFilter, err := cache.TokenFilterNamed(lowercase.Name)
+	if err != nil {
+		return nil, err
+	}
+	stopEnFilter, err := cache.TokenFilterNamed(de.StopName)
+	if err != nil {
+		return nil, err
+	}
+	rv := analysis.DefaultAnalyzer{
+		Tokenizer: tokenizer,
+		TokenFilters: []analysis.TokenFilter{
+			toLowerFilter,
+			stopEnFilter,
+		},
+	}
+	return &rv, nil
+}
+
 const deHTML = "de_html"
 
 func deHTMLAnalyzerConstructor(
@@ -128,6 +153,7 @@ func (f *specialCharFilter) Filter(input []byte) []byte {
 
 func init() {
 	registry.RegisterAnalyzer(deHTML, deHTMLAnalyzerConstructor)
+	registry.RegisterAnalyzer(deStandard, deStandardAnalyzerConstructor)
 }
 
 type bleveType map[string]any
@@ -150,6 +176,7 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 	htmlFieldMapping.Analyzer = deHTML
 
 	stringFieldMapping := bleve.NewTextFieldMapping()
+	stringFieldMapping.Analyzer = deStandard
 
 	indexMapping := mapping.NewIndexMapping()
 	indexMapping.TypeField = "_bleve_type"
@@ -176,6 +203,8 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 		}
 		indexMapping.AddDocumentMapping(name, docMapping)
 	}
+
+	indexMapping.DefaultAnalyzer = de.AnalyzerName
 
 	return indexMapping
 }
