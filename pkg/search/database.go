@@ -7,7 +7,7 @@ package search
 import (
 	"context"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
 	"time"
@@ -128,7 +128,7 @@ func (db *Database) update(handler eventHandler) error {
 	}
 
 	defer func() {
-		log.Printf("updating database took %v\n", time.Since(start))
+		log.Debugf("updating database took %v\n", time.Since(start))
 	}()
 	return db.run(func(ctx context.Context, conn *pgx.Conn) error {
 		rows, err := conn.Query(ctx, selectDiffSQL, db.last)
@@ -154,7 +154,7 @@ func (db *Database) update(handler eventHandler) error {
 			entries++
 			col, id, err := splitFqid(fqid)
 			if err != nil {
-				log.Printf("error: %v\n", err)
+				log.Errorf("error: %v\n", err)
 				continue
 			}
 			// handle changed and new
@@ -207,9 +207,9 @@ func (db *Database) update(handler eventHandler) error {
 			}
 		}
 
-		log.Printf("entries: %d / before: %d\n",
+		log.Debugf("entries: %d / before: %d\n",
 			entries, before)
-		log.Printf("unchanged: %d / added: %d / removed: %d\n",
+		log.Debugf("unchanged: %d / added: %d / removed: %d\n",
 			unchanged, added, removed)
 
 		db.last = start
@@ -242,7 +242,7 @@ func preAllocCollections(ctx context.Context, conn *pgx.Conn) (map[string]map[in
 func (db *Database) fill(handler eventHandler) error {
 	start := time.Now()
 	defer func() {
-		log.Printf("initial database fill took %v\n", time.Since(start))
+		log.Infof("initial database fill took %v\n", time.Since(start))
 	}()
 
 	if handler == nil {
@@ -272,12 +272,12 @@ func (db *Database) fill(handler eventHandler) error {
 			}
 			col, id, err := splitFqid(fqid)
 			if err != nil {
-				log.Printf("error: %v\n", err)
+				log.Warnf("error: %v\n", err)
 				continue
 			}
 			collection := cols[col]
 			if collection == nil {
-				log.Printf("alloc collection %q. This should has happend before.\n", col)
+				log.Warnf("alloc collection %q. This should has happend before.\n", col)
 				collection = make(map[int]*entry)
 				cols[col] = collection
 			}
@@ -296,11 +296,11 @@ func (db *Database) fill(handler eventHandler) error {
 		if err := rows.Err(); err != nil {
 			return err
 		}
-		log.Printf("num entries: %d / size: %d (%.2fMiB)\n",
+		log.Debugf("num entries: %d / size: %d (%.2fMiB)\n",
 			numEntries,
 			size, float64(size)/(1024*1024))
 
-		log.Printf("num collections: %d\n", len(cols))
+		log.Debugf("num collections: %d\n", len(cols))
 		db.collections = cols
 		db.last = start
 		return nil

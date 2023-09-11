@@ -9,7 +9,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"runtime"
@@ -64,7 +64,7 @@ func run(cfg *config.Config) error {
 		}
 		searchModels.Retain(searchFilter.Retain(false))
 	} else {
-		searchModels.Retain(meta.RetainStrings(false))
+		searchModels.Retain(meta.RetainStrings())
 	}
 
 	db := search.NewDatabase(cfg)

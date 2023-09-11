@@ -7,10 +7,11 @@ package search
 import (
 	"fmt"
 	"html"
-	"log"
 	"os"
 	"strconv"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/OpenSlides/openslides-search-service/pkg/config"
 	"github.com/OpenSlides/openslides-search-service/pkg/meta"
@@ -197,7 +198,7 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 				case "number[]":
 					docMapping.AddFieldMappingsAt(fname, numberFieldMapping)
 				default:
-					log.Printf("unsupport type %q on field %s\n", cf.Type, fname)
+					log.Errorf("unsupport type %q on field %s\n", cf.Type, fname)
 				}
 			}
 		}
@@ -293,7 +294,7 @@ func (ti *TextIndex) update() error {
 func (ti *TextIndex) build() error {
 	start := time.Now()
 	defer func() {
-		log.Printf("building initial text index took %v\n", time.Since(start))
+		log.Infof("building initial text index took %v\n", time.Since(start))
 	}()
 
 	// Remove old index file
@@ -370,7 +371,7 @@ type Answer struct {
 func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, error) {
 	start := time.Now()
 	defer func() {
-		log.Printf("searching for %q took %v\n", question, time.Since(start))
+		log.Debugf("searching for %q took %v\n", question, time.Since(start))
 	}()
 
 	var q query.Query
@@ -399,7 +400,7 @@ func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, 
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("number hits: %d\n", len(result.Hits))
+	log.Debugf("number hits: %d\n", len(result.Hits))
 	dupes := map[string]struct{}{}
 	answers := make(map[string]Answer, len(result.Hits))
 	numDupes := 0
@@ -425,6 +426,6 @@ func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, 
 			MatchedWords: matchedWords,
 		}
 	}
-	log.Printf("number of duplicates: %d\n", numDupes)
+	log.Debugf("number of duplicates: %d\n", numDupes)
 	return answers, nil
 }

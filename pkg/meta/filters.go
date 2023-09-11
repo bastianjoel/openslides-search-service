@@ -1,7 +1,7 @@
 package meta
 
 import (
-	"log"
+	log "github.com/sirupsen/logrus"
 	"sort"
 
 	"gopkg.in/yaml.v3"

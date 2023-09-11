@@ -2,7 +2,7 @@ package meta
 
 import (
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 
 	"gopkg.in/yaml.v3"
 )
@@ -116,15 +116,13 @@ func (m *Member) Clone() *Member {
 }
 
 // RetainStrings returns a function which keeps string type fields in [Retain].
-func RetainStrings(verbose bool) func(string, string, *Member) bool {
+func RetainStrings() func(string, string, *Member) bool {
 	return func(k, fk string, f *Member) bool {
 		switch f.Type {
 		case "string", "HTMLStrict", "text", "HTMLPermissive":
 			return true
 		default:
-			if verbose {
-				log.Printf("removing non-string %s.%s\n", k, fk)
-			}
+			log.Tracef("removing non-string %s.%s\n", k, fk)
 			return false
 		}
 	}

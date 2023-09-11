@@ -7,6 +7,7 @@ require (
 	github.com/blevesearch/bleve/v2 v2.3.8
 	github.com/buger/jsonparser v1.1.1
 	github.com/jackc/pgx/v5 v5.3.1
+	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/sys v0.6.0
 	gopkg.in/yaml.v3 v3.0.1
 )

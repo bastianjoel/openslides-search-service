@@ -8,7 +8,7 @@ package search
 import (
 	"context"
 	"errors"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"time"
 
 	"github.com/OpenSlides/openslides-search-service/pkg/config"
@@ -43,11 +43,11 @@ func (qs *QueryServer) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("shutting down query server")
+			log.Info("shutting down query server")
 			return
 		case <-ticker.C:
 			if err := qs.ti.update(); err != nil {
-				log.Printf("updating text index failed: %v\n", err)
+				log.Errorf("updating text index failed: %v\n", err)
 			}
 		case qi := <-qs.queries:
 			// update the database before searching

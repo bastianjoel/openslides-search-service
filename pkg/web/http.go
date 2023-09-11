@@ -11,8 +11,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -88,7 +88,7 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 		requestBody := c.autoupdateRequestFromFQIDs(answers)
 		if len(requestBody) == 0 {
 			if _, err := w.Write([]byte("{}")); err != nil {
-				log.Printf("error: writing response failed: %v\n", err)
+				log.Errorf("error: writing response failed: %v\n", err)
 			}
 			return
 		}
@@ -133,7 +133,7 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if _, err := w.Write(filteredResp); err != nil {
-			log.Printf("error: writing response failed: %v\n", err)
+			log.Errorf("error: writing response failed: %v\n", err)
 		}
 		return
 	}
@@ -143,7 +143,7 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if err := json.NewEncoder(w).Encode(answers); err != nil {
-		log.Printf("error: %v\n", err)
+		log.Errorf("error: %v\n", err)
 	}
 }
 
@@ -310,7 +310,7 @@ func Run(
 		authMiddleware(http.HandlerFunc(c.search), auth))
 
 	addr := fmt.Sprintf("%s:%d", cfg.Web.Host, cfg.Web.Port)
-	log.Printf("listen web on %s\n", addr)
+	log.Infof("listen web on %s\n", addr)
 
 	s := &http.Server{
 		Addr:        addr,
@@ -325,7 +325,7 @@ func Run(
 			done <- fmt.Errorf("server error: %v", err)
 			return
 		}
-		log.Println("web server done")
+		log.Infof("web server done")
 		done <- nil
 	}()
 	if err := s.ListenAndServe(); err != http.ErrServerClosed {

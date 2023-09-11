@@ -10,7 +10,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 
 	"github.com/OpenSlides/openslides-search-service/pkg/meta"
@@ -30,6 +30,7 @@ func run(input, filter, output string, verbose bool) error {
 	lg := nolog
 	if verbose {
 		lg = log.Printf
+		log.SetLevel(log.TraceLevel)
 	}
 
 	lg("Fetching models from %s\n", input)
@@ -58,7 +59,7 @@ func run(input, filter, output string, verbose bool) error {
 	}
 
 	lg("Writing filter\n")
-	searchable := meta.RetainStrings(verbose)
+	searchable := meta.RetainStrings()
 	collections.Retain(func(k, fk string, f *meta.Member) bool {
 		switch fk {
 		case "id", "sequential_number":

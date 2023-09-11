@@ -9,7 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 )
 
 // Handle handles an error.
@@ -24,7 +24,7 @@ func Handle(err error) {
 		err = errAdmin
 	}
 
-	log.Printf("Error: %v", err)
+	log.Errorf("Error: %v", err)
 }
 
 // ContextDone returns true, if the given error contains a context.Canceled or
