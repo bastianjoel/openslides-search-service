@@ -78,6 +78,7 @@ motion:
     - number
     - title
     - text
+    - reason
     - meeting_id
   additional:
     - id
