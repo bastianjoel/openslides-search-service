@@ -5,10 +5,12 @@
 package search
 
 import (
+	"bytes"
 	"fmt"
 	"html"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -19,6 +21,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/keyword"
+	"github.com/blevesearch/bleve/v2/analysis/analyzer/simple"
 	bleveHtml "github.com/blevesearch/bleve/v2/analysis/char/html"
 	"github.com/blevesearch/bleve/v2/analysis/lang/de"
 	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
@@ -154,6 +157,9 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 	keywordFieldMapping := bleve.NewTextFieldMapping()
 	keywordFieldMapping.Analyzer = keyword.Name
 
+	simpleFieldMapping := bleve.NewTextFieldMapping()
+	simpleFieldMapping.Analyzer = simple.Name
+
 	indexMapping := mapping.NewIndexMapping()
 	indexMapping.TypeField = "_bleve_type"
 
@@ -167,6 +173,7 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 					docMapping.AddFieldMappingsAt(fname, htmlFieldMapping)
 				case "string", "text":
 					docMapping.AddFieldMappingsAt(fname, textFieldMapping)
+					docMapping.AddFieldMappingsAt("_"+fname+"_original", simpleFieldMapping)
 				case "generic-relation":
 					docMapping.AddFieldMappingsAt(fname, keywordFieldMapping)
 				case "relation", "number":
@@ -189,7 +196,13 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 func (bt bleveType) fill(fields map[string]*meta.Member, data []byte) {
 	for fname := range fields {
 		switch fields[fname].Type {
-		case "HTMLStrict", "HTMLPermissive", "string", "text", "generic-relation":
+		case "string", "text":
+			if v, err := jsonparser.GetString(data, fname); err == nil {
+				bt[fname] = v
+				bt["_"+fname+"_original"] = v
+				continue
+			}
+		case "HTMLStrict", "HTMLPermissive", "generic-relation":
 			if v, err := jsonparser.GetString(data, fname); err == nil {
 				bt[fname] = v
 				continue
@@ -350,8 +363,18 @@ func (ti *TextIndex) Search(question string, collections []string, meetingID int
 		log.Debugf("searching for %q took %v\n", question, time.Since(start))
 	}()
 
+	var wildcardQuestion bytes.Buffer
+	for _, w := range strings.Split(question, " ") {
+		if w[0] != byte('*') && w[len(w)-1] != byte('*') {
+			wildcardQuestion.WriteString("*" + strings.ToLower(w) + "*")
+		}
+	}
+	wildcardQuery := bleve.NewQueryStringQuery(wildcardQuestion.String())
+
 	var q query.Query
-	matchQuery := bleve.NewQueryStringQuery(question)
+	matchQueryOriginal := bleve.NewQueryStringQuery(question)
+	matchQueryOriginal.SetBoost(5)
+	matchQuery := bleve.NewDisjunctionQuery(matchQueryOriginal, wildcardQuery)
 
 	if meetingID > 0 {
 		fmid := float64(meetingID)
